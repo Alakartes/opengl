@@ -1,17 +1,3 @@
-/*****************************************************************************
-File: TD3-avatar-skel.c
-
-Informatique Graphique IG1
-IFIPS
-Christian Jacquemin, Universit� Paris 11
-
-Copyright (C) 2007 University Paris 11
-This file is provided without support, instruction, or implied
-warranty of any kind.  University Paris 11 makes no guarantee of its
-fitness for a particular purpose and is not liable under any
-circumstances for any damages or loss whatsoever arising from the use
-or inability to use this file or items derived from it.
-******************************************************************************/
 #if defined(__APPLE__)
 	#include <GLUT/glut.h>
 	#define APIENTRY
@@ -24,9 +10,24 @@ or inability to use this file or items derived from it.
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+
+#include "../headers/frame.h"
+#include "../headers/head.h"
+#include "../headers/arm.h"
+#include "../headers/chest.h"
+#include "../headers/foot.h"
+#include "../headers/hand.h"
+#include "../headers/leg.h"
+#include "../headers/neck.h"
+#include "../headers/shoulder.h"
+#include "../headers/pectoral.h"
+#include "../headers/chair.h"
+#include "../headers/hat.h"
+#include "../headers/buttocks.h"
+
+
 /*#include "tiffio.h"    // Sam Leffler's libtiff library.
-int writetiff(char *filename, char *description,
-	      int x, int y, int width, int height, int compression);*/
+int writetiff(char *filename, char *description, int x, int y, int width, int height, int compression);*/
 
 #define    windowWidth 800
 #define    windowHeight 800
@@ -44,7 +45,7 @@ int writetiff(char *filename, char *description,
 
 #define PI 3.1415926535898
 
-#define position_Ini                   -60.0
+#define position_Ini 0.0
 
 float t = 0.f;
 float delta = 10.f;
@@ -55,23 +56,36 @@ int TraceEcran = false;
 int RangFichierStockage = 0;
 float position = position_Ini;
 
-int  Ma_Tete;
-int  Mon_Tronc;
-int  Mon_Bras;
-int  Mon_AvantBras;
-int  Ma_Cuisse;
-int  Mon_Mollet;
-int  Mon_Repere;
+#define NB_LISTS 10
 
-float cam_x = 0;
-float cam_y = 0;
-float cam_z = 1;
+enum lists{		dl_init	 	= 0,
+					dl_head 		= 1,
+					dl_chest 	= 2,
+					dl_neck 		= 3,
+					dl_hand 		= 4,
+					dl_arm 		= 5,
+					dl_calf 		= 6,
+					dl_thigh		= 7,
+					dl_foot 		= 8,
+					dl_forearm 	= 9,
+					dl_frame		= 10,
+					dl_pectoral	= 11,
+					dl_chair		= 12,
+					dl_shoulder	= 13,
+					dl_hat		= 14,
+					dl_buttocks	= 15
+			};
+int dl_lists[NB_LISTS];
+
+float cam_x = -22;
+float cam_y = 17;
+float cam_z = 24;
 
 float po_x = 0;
 float po_y = 0;
 float po_z = 0;
 
-enum lateralite{ Gauche = 0, Droit };
+enum laterality{left = 0, right = 1};
 
 float angle_Bras[2];
 float angle_AvantBras[2];
@@ -112,54 +126,31 @@ int latence =4;
 
 void init_scene();
 void render_scene();
-void init_angles();
+void init_gl_ids();
 GLvoid initGL();
 GLvoid window_display();
 GLvoid window_reshape(GLsizei width, GLsizei height);
 GLvoid window_key(unsigned char key, int x, int y);
 GLvoid window_timer();
-void Faire_Composantes();
-void Dessine_Repere();
+
 
 int main(int argc, char **argv)
 {
-    // initialisation  des param�tres de GLUT en fonction
-    // des arguments sur la ligne de commande
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 
-    // d�finition et cr�ation de la fen�tre graphique
-    glutInitWindowSize(windowWidth,windowHeight);
+    glutInitWindowSize(windowWidth, windowHeight);
     glutInitWindowPosition(0, 0);
-    glutCreateWindow("Avatar animé");
+    glutCreateWindow("openGL ET3");
 
-    // initialisation de OpenGL et de la sc�ne
     initGL();
     init_scene();
 
-
-
-
-
-
-
-
-
-
-
-
-
-    // choix des proc�dures de callback pour
-    // le trac� graphique
     glutDisplayFunc(&window_display);
-    // le redimensionnement de la fen�tre
     glutReshapeFunc(&window_reshape);
-    // la gestion des �v�nements clavier
     glutKeyboardFunc(&window_key);
-    // fonction appel�e r�guli�rement entre deux gestions d��v�nements
-    glutTimerFunc(latence,&window_timer,Step);
+    glutTimerFunc(latence, &window_timer, Step);
 
-    // la boucle prinicipale de gestion des �v�nements utilisateur
     glutMainLoop();
 
     return 1;
@@ -169,9 +160,6 @@ int main(int argc, char **argv)
 
 GLvoid initGL()
 {
-    // initialisation de l��clairement
-
-    // d�finition de deux source lumineuses
     glLightfv(GL_LIGHT0, GL_AMBIENT, ambient_light0);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse_light0);
     glLightfv(GL_LIGHT0, GL_SPECULAR, specular_light0);
@@ -181,45 +169,46 @@ GLvoid initGL()
     glLightfv(GL_LIGHT0, GL_POSITION, light_position0);
     glLightfv(GL_LIGHT1, GL_POSITION, light_position1);
 
-    // activation de l��clairement
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glEnable(GL_LIGHT1);
 
     // propri�t�s mat�rielles des objets
-    // glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, mat_ambientanddiffuse);
-    // glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
-    // glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
-    glShadeModel( GL_SMOOTH );
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, mat_ambientanddiffuse);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
+    glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
+    glShadeModel(GL_SMOOTH);
     glEnable(GL_COLOR_MATERIAL);
 
-    // initialisation du fond
-    glClearColor(RED, GREEN, BLUE, ALPHA);
+    glClearColor(0.2, 0.22, 0.25, ALPHA);
     // z-buffer
     glEnable(GL_DEPTH_TEST);
 }
 
 void init_scene()
 {
-    // initialise des display lists des composantes cylindriques du corps
-    Faire_Composantes();
+	draw_frame(dl_frame);
 
-    amplitude_Bras
-    = .5 * (angle_Bras_Ini[ Droit ] - angle_Bras_Ini[ Gauche ]);
-    amplitude_AvantBras
-    = .5 * (angle_AvantBras_Ini[ Droit ] - angle_AvantBras_Ini[ Gauche ]);
-    amplitude_Cuisse
-    = .5 * (angle_Cuisse_Ini[ Droit ] - angle_Cuisse_Ini[ Gauche ]);
-    amplitude_Mollet
-    = .5 * (angle_Mollet_Ini[ Droit ] - angle_Mollet_Ini[ Gauche ]);
-    med_Bras
-    = .5 * (angle_Bras_Ini[ Droit ] + angle_Bras_Ini[ Gauche ]);
-    med_AvantBras
-    = .5 * (angle_AvantBras_Ini[ Droit ] + angle_AvantBras_Ini[ Gauche ]);
-    med_Cuisse
-    = .5 * (angle_Cuisse_Ini[ Droit ] + angle_Cuisse_Ini[ Gauche ]);
-    med_Mollet
-    = .5 * (angle_Mollet_Ini[ Droit ] + angle_Mollet_Ini[ Gauche ]);
+	draw_head(dl_head);
+	draw_hat(dl_hat);
+	draw_chest(dl_chest);
+
+	draw_arm(dl_arm);
+	draw_forearm(dl_forearm);
+	draw_shoulder(dl_shoulder);
+
+	draw_calf(dl_calf);
+	draw_thigh(dl_thigh);
+	draw_buttocks(dl_buttocks);
+
+	amplitude_Bras = .5 * (angle_Bras_Ini[ right ] - angle_Bras_Ini[ left ]);
+	amplitude_AvantBras = .5 * (angle_AvantBras_Ini[ right ] - angle_AvantBras_Ini[ left ]);
+	amplitude_Cuisse = .5 * (angle_Cuisse_Ini[ right ] - angle_Cuisse_Ini[ left ]);
+	amplitude_Mollet = .5 * (angle_Mollet_Ini[ right ] - angle_Mollet_Ini[ left ]);
+	med_Bras = .5 * (angle_Bras_Ini[ right ] + angle_Bras_Ini[ left ]);
+	med_AvantBras = .5 * (angle_AvantBras_Ini[ right ] + angle_AvantBras_Ini[ left ]);
+	med_Cuisse = .5 * (angle_Cuisse_Ini[ right ] + angle_Cuisse_Ini[ left ]);
+	med_Mollet = .5 * (angle_Mollet_Ini[ right ] + angle_Mollet_Ini[ left ]);
 }
 
 // fonction de call-back pour l�affichage dans la fen�tre
@@ -231,11 +220,8 @@ GLvoid window_display()
 
     gluLookAt(cam_x, cam_y, cam_z, po_x, po_y, po_z, 0, 1, 0);
 
-    Dessine_Repere();
     render_scene();
 
-
-    // trace la sc�ne grapnique qui vient juste d'�tre d�finie
     glFlush();
 }
 
@@ -244,14 +230,9 @@ GLvoid window_display()
 GLvoid window_reshape(GLsizei width, GLsizei height)
 {
     glViewport(0, 0, width, height);
-
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(-20, 20, -20, 20, -1000, 1000);
-    // glFrustum(-20, 20, -20, 20, 10, 1000);
-    // glScalef(10, 10, 10);
-
-    // toutes les transformations suivantes s�appliquent au mod�le de vue
+	 glMatrixMode(GL_PROJECTION);
+	 glLoadIdentity();
+	 gluPerspective(45, 1.333, 1, 1000);
     glMatrixMode(GL_MODELVIEW);
 }
 
@@ -274,31 +255,35 @@ GLvoid window_key(unsigned char key, int x, int y)
     }
     break;
     case 's':
-    delta+=30;
+	 	delta+=70;
+		position = position - 0.5;
     break;
     case 'z':
-    delta-=30;
+    	delta-=70;
+	 	position = position + 0.5;
     break;
     case 'i':
-      cam_x = 0;
-      cam_y = 2;
-      cam_z = 0;
+	 	cam_y+=1;
     break;
     case 'k':
-      cam_x = 1;
-      cam_y = -1;
-      cam_z = -1;
+	 	cam_y-=1;
     break;
     case 'j':
-      cam_x+=0.2;
-      po_y+=0.2;
+	 	cam_z+=1;
     break;
     case 'l':
-      cam_x-=0.2;
-      po_y-=0.2;
+	 	cam_z-=1;
     break;
+	 case 'o':
+	 	cam_x-=1;
+	 break;
+	 case 'u':
+	 	cam_x+=1;
+		break;
+	 case 'g':
+	 	printf("%f:%f:%f\n", cam_x, cam_y, cam_z);
     default:
-    printf ("La touche %d n'est pas active.\n", key);
+	 	printf ("La touche %d n'est pas active.\n", key);
     break;
     }
 }
@@ -309,223 +294,174 @@ GLvoid window_timer()
 {
     // On effecture une variation des angles de chaque membre
     // de l'amplitude associ�e et de la position m�diane
-    angle_Bras[Droit] = sin(K*delta)*22.5-15;
-    angle_AvantBras[Droit] = sin(K*delta)*15+15;
-    angle_Bras[Gauche] = -sin(K*delta)*22.5-15;
-    angle_AvantBras[Gauche] = -sin(K*delta)*15+15;
+    angle_Bras[right] = sin(K*delta)*32.5-15;
+    angle_AvantBras[right] = sin(K*delta)*25+15;
+    angle_Bras[left] = -sin(K*delta)*32.5-15;
+    angle_AvantBras[left] = -sin(K*delta)*25+15;
 
-    angle_Cuisse[Droit] = sin(K*delta)*20;
-    angle_Mollet[Droit] = sin(K*delta)*10-10;
-    angle_Cuisse[Gauche] = -sin(K*delta)*20;
-    angle_Mollet[Gauche] = -sin(K*delta)*10-10;
+    angle_Cuisse[right] = sin(K*delta)*30;
+    angle_Mollet[right] = sin(K*delta)*20-10;
+    angle_Cuisse[left] = -sin(K*delta)*30;
+    angle_Mollet[left] = -sin(K*delta)*20-10;
 
-    // On d�place la position de l'avatar pour qu'il avance
-    // ********* A FAIRE **************
+	 /*angle_Bras[right] = sin(K*delta)*15-15;
+    angle_AvantBras[right] = sin(K*delta)*10+15;
+    angle_Bras[left] = -sin(K*delta)*15-15;
+    angle_AvantBras[left] = -sin(K*delta)*10+15;
+
+    angle_Cuisse[right] = sin(K*delta)*10;
+    angle_Mollet[right] = sin(K*delta)*5-10;
+    angle_Cuisse[left] = -sin(K*delta)*10;
+    angle_Mollet[left] = -sin(K*delta)*5-10;*/
 
     glutTimerFunc(latence,&window_timer,++Step);
 
     glutPostRedisplay();
 }
 
-// un cylindre
-void Faire_Composantes() {
-    GLUquadricObj* GLAPIENTRY qobj;
-
-    // attribution des indentificateurs de display lists
-    Ma_Tete =  glGenLists(6);
-    Mon_Tronc = Ma_Tete + 1;
-    Mon_Bras = Ma_Tete + 2;
-    Mon_AvantBras = Ma_Tete + 3;
-    Ma_Cuisse = Ma_Tete + 4;
-    Mon_Mollet = Ma_Tete + 5;
-
-    // compilation de la display list de la sph�re
-    glNewList(Ma_Tete, GL_COMPILE);
-    glutSolidSphere(1.5,8,8);
-    glEndList();
-
-    // allocation d�une description de quadrique
-    qobj = gluNewQuadric();
-    // la quadrique est pleine
-    gluQuadricDrawStyle(qobj, GLU_FILL);
-    // les ombrages, s�il y en a, sont doux
-    gluQuadricNormals(qobj, GLU_SMOOTH);
-
-    // compilation des display lists des cylindres
-    glNewList(Mon_Tronc, GL_COMPILE);
-    gluCylinder(qobj,2.5,2.5,7.0,100,100);
-    glEndList();
-
-    glNewList(Mon_Bras, GL_COMPILE);
-    gluCylinder(qobj,0.5,0.5,5.0,100,100);
-    glEndList();
-
-    glNewList(Mon_AvantBras, GL_COMPILE);
-    gluCylinder(qobj,0.5,0.25,5.0,100,100);
-    glEndList();
-
-    glNewList(Ma_Cuisse, GL_COMPILE);
-    gluCylinder(qobj,1.25,0.75,5.0,100,100);
-    glEndList();
-
-    glNewList(Mon_Mollet, GL_COMPILE);
-    gluCylinder(qobj,0.75,0.25,5.0,100,100);
-    glEndList();
-
-}
-
-void  Dessine_Repere() {
-    glNewList(Mon_Repere, GL_COMPILE);
-    glBegin(GL_LINES);
-    glColor3f(1.0, 0.0, 0.0);
-    glVertex3f(-20 , 0 , 0);
-    glVertex3f(20 , 0 , 0);
-    glEnd();
-
-    glBegin(GL_POLYGON);
-    glColor3f(0.3, 0.4, 0.5);
-      glVertex3f(20, -9, 20);
-      glVertex3f(20, -9, -20);
-      glVertex3f(-20, -9, -20);
-      glVertex3f(-20, -9, 20);
-    glEnd();
-
-    glBegin(GL_LINES);
-    glColor3f(0.0, 1.0, 0.0);
-    glVertex3f(0 , -20 , 0);
-    glVertex3f(0 , 20 , 0);
-    glEnd();
-
-    glBegin(GL_LINES);
-    glColor3f(0.0, 0.0, 1.0);
-    glVertex3f(0 , 0 , -20);
-    glVertex3f(0 , 0 , 20);
-    glEnd();
-
-    glPointSize( 10.0 );
-    glBegin(GL_POINTS);
-    glColor3f(1.0, 0, 0);
-    glVertex3f(20.0 , 0 , 0);
-    glEnd();
-
-    glBegin(GL_POINTS);
-    glColor3f(0, 1.0, 0);
-    glVertex3f(0 , 20.0 , 0);
-    glEnd();
-
-    glBegin(GL_POINTS);
-    glColor3f(0, 0, 1.0);
-    glVertex3f(0 , 0 , 20.0);
-    glEnd();
-    glEndList();
+void init_gl_ids() {
+	int i;
+	dl_lists[dl_init] = glGenLists(NB_LISTS);
+	for(i = 1; i < NB_LISTS; i++) {
+		dl_lists[i] = dl_lists[dl_init] + i;
+	}
 }
 
 void render_scene()
 {
-    // rotation de 90 degres autour de Ox pour mettre l'axe Oz
-    // vertical comme sur la figure
-    glRotatef(-90, 1, 0, 0);
+	glPushMatrix();
+		glCallList(dl_frame);
+	glPopMatrix();
+   // rotation de 90 degres autour de Ox pour mettre l'axe Oz
+   // vertical comme sur la figure
+   glRotatef(-90, 1, 0, 0);
+	glRotatef(180, 0, 0, 1);
 
-    // rotation de 160 degres autour de l'axe Oz pour faire
-    // avancer l'avatar vers le spectateur
-    glRotatef(-160, 0, 0, 1);
+   // d�placement horizontal selon l�axe Oy pour donner
+	// une impression de d�placement horizontal accompagnant
+   // la marche
+   glTranslatef(0, position, 0);
 
-    // rotation de 25 degres autour de la bissectrice de $Oy$ pour
-    // voir la figure en perspective
-     glRotatef(25, 0, 0, 1);
-
-    // d�placement horizontal selon l�axe Oy pour donner
-    // une impression de d�placement horizontal accompagnant
-    // la marche
-    //glTranslatef( 0, position, 0);
-
-    // trac� du tronc, aucune transformation n�est
-    // requise
-    glColor3f(1.0, 0, 0);
-    glCallList(Mon_Tronc);
-
+   // trac� du tronc, aucune transformation n�est
+   // requise
+	glPushMatrix();
+		glRotatef(-90, 0, 1, 0);
+		glCallList(dl_chest);
+	glPopMatrix();
     // trac� de la t�te avec une translation positive
     // selon Oz pour la placer au-dessus du tronc
     // les appels � glPushMatrix et glPopMatrix servent
     // � sauvegarder et restaurer le contexte graphique
     glColor3f(1, 0.8, 0.6);
     glPushMatrix();
-        glTranslatef(0,0,8.5);
-        glCallList(Ma_Tete);
+        glTranslatef(0,0,9);
+        glCallList(dl_head);
     glPopMatrix();
 
-    // trac� de la cuisse droite avec une translation vers
-    // la droite et une rotation de 180� autour de Ox
+	 glPushMatrix();
+	 	glTranslatef(0, 0, 9.5);
+		glRotatef(-90, 0, 1, 0);
+		glCallList(dl_hat);
+	 glPopMatrix();
+
+    // trac� de la cuisse righte avec une translation vers
+    // la righte et une rotation de 180� autour de Ox
     // pour l�orienter vers le bas
+
+
+	 glPushMatrix();
+        glTranslatef(0,0,0.3);
+        glRotatef(180,1.0,0,0);
+        glCallList(dl_buttocks);
+	 glPopMatrix();
+
     glColor3f(0, 0, 1.0);
     glPushMatrix();
         glTranslatef(1.25,0,0);
-        glRotatef(180,1.0,0,0);
-        glRotatef(angle_Cuisse[Droit],1.0,0,0);
-        glCallList(Ma_Cuisse);
+        glRotatef(angle_Cuisse[right],1.0,0,0);
+        glCallList(dl_thigh);
 
     // pour tracer le mollet, on reste dans le m�me
     // contexte graphique et on translate de
     // +5 selon Oz afin de mettre le rep�re au niveau
     // du genou
         glPushMatrix();
-            glTranslatef(0,0,5.0);
-            glRotatef(angle_Mollet[Droit],1.0,0,0);
-            glCallList(Mon_Mollet);
+            glTranslatef(3.5,0,0);
+            glRotatef(angle_Mollet[right],0,0,1);
+            glCallList(dl_calf);
         glPopMatrix();
     glPopMatrix();
 
-    // cuisse et mollet gauches
+    // cuisse et mollet s
     // seule la translation initiale change
+
+	 glPushMatrix();
+        glTranslatef(0,0,0.3);
+        glRotatef(180,1.0,0,0);
+		  glRotatef(180,0,1,0);
+        glCallList(dl_buttocks);
+	 glPopMatrix();
+
     glPushMatrix();
         glTranslatef(-1.25,0,0);
-        glRotatef(180,1.0,0,0);
-        glRotatef(angle_Cuisse[Gauche],1.0,0,0);
-        glCallList(Ma_Cuisse);
+        glRotatef(angle_Cuisse[left],1.0,0,0);
+        glCallList(dl_thigh);
         glPushMatrix();
-            glTranslatef(0,0,5.0);
-            glRotatef(angle_Mollet[Gauche],1.0,0,0);
-            glCallList(Mon_Mollet);
+            glTranslatef(3.5,0,0);
+            glRotatef(angle_Mollet[left],0,0,1);
+            glCallList(dl_calf);
         glPopMatrix();
     glPopMatrix();
 
-    // trac� du bras droit avec une translation vers
-    // la droite et vers le haut compos�e avec une
+    // trac� du bras right avec une translation vers
+    // la righte et vers le haut compos�e avec une
     // rotation de 180� autour de Ox pour l�orienter
     // vers le bas
+
+	 glPushMatrix();
+        glTranslatef(3.8,0,6.5);
+        glRotatef(180,1,0,0);
+		  glRotatef(180, 0, 1, 0);
+        glCallList(dl_shoulder);
+	 glPopMatrix();
+
     glPushMatrix();
-        glTranslatef(3.0,0,7);
-        glRotatef(180,1.0,0,0);
-        glRotatef(angle_Bras[Droit],1.0,0,0);
-        glColor3f(1.0, 0, 0);
-        glCallList(Mon_Bras);
+        glTranslatef(3.5,0,6.9);
+        glRotatef(angle_Bras[right],1.0,0,0);
+        glColor3f(1, 0, 0);
+        glCallList(dl_arm);
 
     // pour tracer l�avant-bras, on reste dans le m�me
     // contexte graphique et on translate de
     // +5 selon Oz afin de mettre le rep�re au niveau
     // du coude
         glPushMatrix();
-            glTranslatef(0,0,5);
+            glTranslatef(3.7, -0.1, 0);
             glColor3f(1, 0.8, 0.6);
-            glRotatef(angle_AvantBras[Droit],1.0,0,0);
-            glCallList(Mon_AvantBras);
+            glRotatef(angle_AvantBras[right],0,0,1);
+            glCallList(dl_forearm);
         glPopMatrix();
     glPopMatrix();
 
-    // bras et avant-bras gauches
+    // bras et avant-bras lefts
     // seule la translation initiale change
 
-    glPushMatrix();
-        glTranslatef(-3.0,0,7);
+	 glPushMatrix();
+        glTranslatef(-3.8,0,6.5);
         glRotatef(180,1.0,0,0);
-        glRotatef(angle_Bras[Gauche],1.0,0,0);
+        glCallList(dl_shoulder);
+	 glPopMatrix();
+
+    glPushMatrix();
+        glTranslatef(-3.5,0,6.9);
+        glRotatef(angle_Bras[left],1.0,0,0);
         glColor3f(1.0, 0, 0);
-        glCallList(Mon_Bras);
+        glCallList(dl_arm);
         glPushMatrix();
-            glTranslatef(0,0,5.0);
+            glTranslatef(3.7, -0.1, 0);
             glColor3f(1, 0.8, 0.6);
-            glRotatef(angle_AvantBras[Gauche],1.0,0,0);
-            glCallList(Mon_AvantBras);
+            glRotatef(angle_AvantBras[left],0,0,1);
+            glCallList(dl_forearm);
         glPopMatrix();
     glPopMatrix();
 

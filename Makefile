@@ -1,17 +1,9 @@
-NCPATH = -I /usr/local/include -I /usr/X11R6/include -I ./src
-Libpath = -l /usr/local/lib -l /usr/x11r6/lib
-library = -L/System/Library/Frameworks -framework GLUT -framework OpenGL -Wno-deprecated-declarations
-
-CFLAGS = $(INCPATH)
-LDFALGS = $(LIBPATH) $(LIBRARY)
+FLAGS = -ansi -Wall -pedantic -std=c99 -lm -L/System/Library/Frameworks -framework GLUT -framework OpenGL -Wno-deprecated-declarations
 GCC=gcc
 SRC=src
 
 all:
-		@echo "Specifiez une cible"
-
-%:$(SRC)/%.c
-		$(GCC) $(library) -o $@ $< 
+			$(GCC) -o openGL $(FLAGS) $(SRC)/main.c $(SRC)/frame.c $(SRC)/arm.c $(SRC)/chest.c $(SRC)/foot.c $(SRC)/hand.c $(SRC)/head.c $(SRC)/leg.c $(SRC)/neck.c $(SRC)/hat.c $(SRC)/shoulder.c $(SRC)/pectoral.c $(SRC)/chair.c $(SRC)/buttocks.c
 
 clean:
-		@rm -f `/bin/ls *.o | grep -v Makefile | grep -v $(SRC)`
+			rm openGL
